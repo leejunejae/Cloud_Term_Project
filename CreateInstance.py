@@ -1,6 +1,5 @@
 import boto3, os
 from dotenv import load_dotenv
-from boto3.session import Session
 
 
 #6
