@@ -10,7 +10,6 @@ ec2resource = boto3.resource('ec2', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"
 ec2client = boto3.client('ec2', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
                    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"), )
 
-
 # 1
 def ListInstance():
     response = ec2client.describe_instances()
@@ -18,16 +17,15 @@ def ListInstance():
 
     for reservation in response["Reservations"]:
         for instance in reservation["Instances"]:
-            set.append({
-                "[id]": instance["InstanceId"],
-                "[AMI]": instance["ImageId"],
-                "[type]": instance["InstanceType"],
-                "[state]": instance["State"]["Name"],
-                "[monitoring state]": instance["Monitoring"]
-            })
+            set.append([
+                instance["InstanceId"],
+                instance["ImageId"],
+                instance["InstanceType"],
+                instance["State"]["Name"],
+                instance["Monitoring"]
+            ])
 
     return set
-
 # 2
 def AvailableZone():
     response = ec2client.describe_availability_zones()
@@ -110,7 +108,7 @@ app=Flask(__name__)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', zone=ListInstance())
 
 if __name__ == '__main__':
     app.run()
