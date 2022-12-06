@@ -1,5 +1,5 @@
 import boto3, os
-from flask import Flask,render_template
+from flask import Flask,render_template,request
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 
@@ -10,8 +10,14 @@ ec2resource = boto3.resource('ec2', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"
 ec2client = boto3.client('ec2', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
                    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"), )
 
+app=Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 # 1
-def ListInstance():
+@app.route('/ListInstance', methods=['GET'])
+def ListInstance(zone=None):
     response = ec2client.describe_instances()
     set = []
 
@@ -25,7 +31,7 @@ def ListInstance():
                 instance["Monitoring"]
             ])
 
-    return set
+    return render_template("index.html", zone=set)
 # 2
 def AvailableZone():
     response = ec2client.describe_availability_zones()
@@ -36,20 +42,15 @@ def AvailableZone():
 
 
 # 3
+@app.route('/StartInstance', methods=['POST'])
 def StartInstance():
-    instance_id = input()
-
-    try:
-        ec2client.start_instances(InstanceIds=[instance_id], DryRun=True)
-    except ClientError as e:
-        if 'DryRunOperation' not in str(e):
-            raise
+    instance_id = request.form['zone']
 
     try:
         response = ec2client.start_instances(InstanceIds=[instance_id], DryRun=False)
-        print(response)
+        return render_template("index.html", zone=response['StartingInstances'][0]['InstanceId'])
     except ClientError as e:
-        print(e)
+        return render_template("index.html", zone=response)
 
 
 # 4
@@ -103,12 +104,6 @@ def ListImages():
 
     for image in images['Images']:
         print(image['ImageId'], image['Name'], image['OwnerId'])
-
-app=Flask(__name__)
-
-@app.route('/')
-def index():
-    return render_template('index.html', zone=ListInstance())
 
 if __name__ == '__main__':
     app.run()

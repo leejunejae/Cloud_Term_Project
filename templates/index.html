@@ -32,7 +32,7 @@
         <div class="p-4 p-lg-5 bg-light rounded-3 text-center">
             <div class="m-4 m-lg-5">
                 <p class="fs-4">
-                    {% if
+                    {{ zone }}
                 </p>
             </div>
         </div>
@@ -47,9 +47,12 @@
                 <div class="card bg-light border-0 h-100">
                     <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
                         <h2 class="fs-4 fw-bold">ListInstance</h2>
-                        <p class="mb-0">
-                            <button type="button" class="btn btn-outline-secondary" id="btn-1">Import</button>
-                        </p>
+                        <form method="GET" action="/ListInstance">
+                            <p class="mb-0">
+                                <button type="submit" name="zone" class="btn btn-outline-secondary" id="btn-1">Import
+                                </button>
+                            </p>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -69,9 +72,11 @@
                         <h2 class="fs-4 fw-bold">StartInstance</h2>
                         <p class="mb-0">
                         <div class="input-group mb-3">
-                            <input type="text" class="form-control" placeholder="Enter Instance ID"
-                                   aria-label="Instance ID" aria-describedby="button-addon2">
-                            <button class="btn btn-outline-secondary" type="button" id="button-addon2">Button</button>
+                            <form method="POST" action="/StartInstance">
+                                <input type="text" class="form-control" placeholder="Enter Instance ID" name="zone"
+                                       aria-label="Instance ID" aria-describedby="button-addon2">
+                                <button class="btn btn-outline-secondary" type="submit" id="button-addon1">Button</button>
+                            </form>
                         </div>
                         </p>
                     </div>
@@ -91,7 +96,7 @@
                 <div class="card bg-light border-0 h-100">
                     <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
                         <h2 class="fs-4 fw-bold">StopInstance</h2>
-                                    <p class="mb-0">
+                        <p class="mb-0">
                         <div class="input-group mb-3">
                             <input type="text" class="form-control" placeholder="Enter Instance ID"
                                    aria-label="Instance ID" aria-describedby="button-addon2">
@@ -105,7 +110,7 @@
                 <div class="card bg-light border-0 h-100">
                     <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
                         <h2 class="fs-4 fw-bold">CreateInstance</h2>
-                                    <p class="mb-0">
+                        <p class="mb-0">
                         <div class="input-group mb-3">
                             <input type="text" class="form-control" placeholder="Enter Image ID"
                                    aria-label="Instance ID" aria-describedby="button-addon2">
@@ -119,7 +124,7 @@
                 <div class="card bg-light border-0 h-100">
                     <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
                         <h2 class="fs-4 fw-bold">RebootInstance</h2>
-                                    <p class="mb-0">
+                        <p class="mb-0">
                         <div class="input-group mb-3">
                             <input type="text" class="form-control" placeholder="Enter Instance ID"
                                    aria-label="Instance ID" aria-describedby="button-addon2">
@@ -133,7 +138,9 @@
                 <div class="card bg-light border-0 h-100">
                     <div class="card-body text-center p-4 p-lg-5 pt-0 pt-lg-0">
                         <h2 class="fs-4 fw-bold">ListImages</h2>
-                        <p class="mb-0"><button type="button" class="btn btn-outline-secondary">Import</button></p>
+                        <p class="mb-0">
+                            <button type="button" class="btn btn-outline-secondary">Import</button>
+                        </p>
                     </div>
                 </div>
             </div>
