@@ -93,7 +93,7 @@ def StopInstance():
     instance_id = request.form['zone']
 
     try:
-        response = ec2client.start_instances(InstanceIds=[instance_id], DryRun=False)
+        response = ec2client.stop_instances(InstanceIds=[instance_id], DryRun=False)
         return render_template("index.html", zone=response['StoppingInstances'][0]['InstanceId'])
     except ClientError as e:
         return render_template("index.html", zone=response)
@@ -139,6 +139,34 @@ def ListImages():
     printlist = re.sub(r"[^=:,\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
 
     return render_template("index.html", zone=printlist)
+
+# 9
+@app.route('/ModifyInstance', methods=['POST'])
+def ModifyInstance():
+    instance_id = request.form['zone']
+    instance_type = request.form['value']
+    instancestate = ec2client.describe_instances()
+    set = []
+
+    for reservation in instancestate["Reservations"]:
+        for instance in reservation["Instances"]:
+            set.append([
+                instance["InstanceId"],
+                instance["State"]["Name"]
+            ])
+
+    find_index = [i for i in range(len(set)) if instance_id in set[i]]
+    indexint = int(find_index[0])
+
+    try:
+        if set[indexint][1] == "running":
+            ec2client.stop_instances(InstanceIds=[instance_id], DryRun=False)
+            waiter = ec2client.get_waiter('instance_stopped')
+            waiter.wait(InstanceIds=[instance_id])
+        ec2client.modify_instance_attribute(InstanceId=instance_id, Attribute='instanceType', Value=instance_type)
+        return render_template("index.html", zone=instance_id)
+    except ClientError as e:
+        return render_template("index.html", zone="e")
 
 
 if __name__ == '__main__':
