@@ -1,4 +1,4 @@
-import boto3, os, re
+import boto3, os, re, time
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
@@ -8,6 +8,8 @@ load_dotenv()
 ec2resource = boto3.resource('ec2', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
                              aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"), )
 ec2client = boto3.client('ec2', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
+                         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"), )
+ssmclient = boto3.client('ssm', aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
                          aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"), )
 
 app = Flask(__name__)
@@ -24,16 +26,19 @@ def ListInstance(zone=None):
     instances = ec2client.describe_instances()
     set = []
     printlist = ""
+    i = 1
 
     for reservation in instances["Reservations"]:
         for instance in reservation["Instances"]:
             set.append([
+                "Information Instance " + str(i),
                 "id : " + instance["InstanceId"],
                 "AMI : " + instance["ImageId"],
                 "type : " + instance["InstanceType"],
                 "state : " + instance["State"]["Name"],
-                "monitoring state : " + instance["Monitoring"]["State"]
+                "monitoring state : " + instance["Monitoring"]["State"] + " "
             ])
+        i=i+1
 
     for instancestr in set:
         printlist = printlist + "[" + str(instancestr) + "]"
@@ -47,15 +52,17 @@ def ListInstance(zone=None):
 def AvailableZone():
     zones = ec2client.describe_availability_zones()
     set = []
+    blank = "                      "
     for zone in zones['AvailabilityZones']:
         set.append([
-            "id" + zone["ZoneId"],
-            "region" + zone["RegionName"],
-            "zone" + zone["ZoneName"],
+            "id : " + zone["ZoneId"],
+            "region : " + zone["RegionName"],
+            "zone : " + zone["ZoneName"] + "\n"
         ])
 
     printlist = str(set)
-    printlist = re.sub(r"[^=:,\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
+    printlist = re.sub(r"[^\[\]=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
+    printlist = printlist[1:-1]
 
     return render_template("index.html", zone=printlist)
 
@@ -67,9 +74,10 @@ def StartInstance():
 
     try:
         response = ec2client.start_instances(InstanceIds=[instance_id], DryRun=False)
-        return render_template("index.html", zone=response['StartingInstances'][0]['InstanceId'])
+        printlist = "Instance : " + str(response['StartingInstances'][0]['InstanceId']) + " is started"
+        return render_template("index.html", zone=printlist)
     except ClientError as e:
-        return render_template("index.html", zone=response)
+        return render_template("index.html", zone="Error occur Please try again in a moment")
 
 # 4
 @app.route('/AvailableRegions', methods=['GET'])
@@ -82,7 +90,8 @@ def AvailableRegions():
             "endpoint : " + region['Endpoint']
         ])
     printlist = str(set)
-    printlist = re.sub(r"[^=:,\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
+    printlist = re.sub(r"[^\[\]=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
+    printlist = printlist[1:-1]
 
     return render_template("index.html", zone=printlist)
 
@@ -94,9 +103,10 @@ def StopInstance():
 
     try:
         response = ec2client.stop_instances(InstanceIds=[instance_id], DryRun=False)
-        return render_template("index.html", zone=response['StoppingInstances'][0]['InstanceId'])
+        printlist = "Instance : " + str(response['StoppingInstances'][0]['InstanceId']) + " is stopped"
+        return render_template("index.html", zone=printlist)
     except ClientError as e:
-        return render_template("index.html", zone=response)
+        return render_template("index.html", zone="Error occur Please try again in a moment")
 
 
 # 6
@@ -108,6 +118,7 @@ def CreateInstance():
     printlist = str(response)
     printlist = printlist.replace("[ec2.Instance(id='", "")
     printlist = printlist.replace("')]", "")
+    printlist = "New Instance " + printlist + " is created"
     return render_template("index.html", zone=printlist)
 
 
@@ -118,9 +129,10 @@ def RebootInstance():
 
     try:
         response = ec2client.reboot_instances(InstanceIds=[instance_id], DryRun=False)
-        return render_template("index.html", zone=instance_id)
+        printlist = "Instance : " + instance_id + " is rebooted"
+        return render_template("index.html", zone=printlist)
     except ClientError as e:
-        return render_template("index.html", zone=response)
+        return render_template("index.html", zone="Error occur Please try again in a moment")
 
 
 # 8
@@ -136,11 +148,33 @@ def ListImages():
         ])
 
     printlist = str(set)
-    printlist = re.sub(r"[^=:,\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
+    printlist = re.sub(r"[^\[\]=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
+    printlist = printlist[1:-1]
 
     return render_template("index.html", zone=printlist)
 
 # 9
+@app.route('/Condor_Status', methods=['POST'])
+def Condor_Status():
+    instance_id = request.form['zone']
+
+    response = ssmclient.send_command(
+        InstanceIds=[instance_id],
+        DocumentName="AWS-RunShellScript",
+        Parameters={'commands': ['condor_status']},
+    )
+
+    time.sleep(2)
+
+    command_id = response['Command']['CommandId']
+    output = ssmclient.get_command_invocation(
+        CommandId=command_id,
+        InstanceId=instance_id,
+    )
+
+    return render_template("index.html", zone=output['StandardOutputContent'])
+
+# 10
 @app.route('/ModifyInstance', methods=['POST'])
 def ModifyInstance():
     instance_id = request.form['zone']
@@ -164,9 +198,10 @@ def ModifyInstance():
             waiter = ec2client.get_waiter('instance_stopped')
             waiter.wait(InstanceIds=[instance_id])
         ec2client.modify_instance_attribute(InstanceId=instance_id, Attribute='instanceType', Value=instance_type)
-        return render_template("index.html", zone=instance_id)
+        printlist = "Instance : " + instance_id + "\'s type is modified"
+        return render_template("index.html", zone=printlist)
     except ClientError as e:
-        return render_template("index.html", zone="e")
+        return render_template("index.html", zone="Error occur Please try again in a moment")
 
 
 if __name__ == '__main__':
