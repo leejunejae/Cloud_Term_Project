@@ -38,7 +38,7 @@ def ListInstance(zone=None):
                 "state : " + instance["State"]["Name"],
                 "monitoring state : " + instance["Monitoring"]["State"] + " "
             ])
-        i=i+1
+        i = i + 1
 
     for instancestr in set:
         printlist = printlist + "[" + str(instancestr) + "]"
@@ -79,6 +79,7 @@ def StartInstance():
     except ClientError as e:
         return render_template("index.html", zone="Error occur Please try again in a moment")
 
+
 # 4
 @app.route('/AvailableRegions', methods=['GET'])
 def AvailableRegions():
@@ -114,12 +115,16 @@ def StopInstance():
 def CreateInstance():
     image_id = request.form['zone']
 
-    response = ec2resource.create_instances(ImageId=image_id, MinCount=1, MaxCount=1, InstanceType='t2.micro')
-    printlist = str(response)
-    printlist = printlist.replace("[ec2.Instance(id='", "")
-    printlist = printlist.replace("')]", "")
-    printlist = "New Instance " + printlist + " is created"
-    return render_template("index.html", zone=printlist)
+    try:
+        response = ec2resource.create_instances(ImageId=image_id, MinCount=1, MaxCount=1, InstanceType='t2.micro',
+                                                KeyName='test', SecurityGroupIds=['launch-wizard-5'])
+        printlist = str(response)
+        printlist = printlist.replace("[ec2.Instance(id='", "")
+        printlist = printlist.replace("')]", "")
+        printlist = "New Instance " + printlist + " is created"
+        return render_template("index.html", zone=printlist)
+    except ClientError as e:
+        return render_template("index.html", zone="Error occur Please try again in a moment")
 
 
 # 7
@@ -128,11 +133,11 @@ def RebootInstance():
     instance_id = request.form['zone']
 
     try:
-        response = ec2client.reboot_instances(InstanceIds=[instance_id], DryRun=False)
+        ec2client.reboot_instances(InstanceIds=[instance_id], DryRun=False)
         printlist = "Instance : " + instance_id + " is rebooted"
         return render_template("index.html", zone=printlist)
     except ClientError as e:
-        return render_template("index.html", zone="Error occur Please try again in a moment")
+        return render_template("index.html", zone=e)
 
 
 # 8
@@ -153,26 +158,30 @@ def ListImages():
 
     return render_template("index.html", zone=printlist)
 
+
 # 9
 @app.route('/Condor_Status', methods=['POST'])
 def Condor_Status():
     instance_id = request.form['zone']
 
-    response = ssmclient.send_command(
-        InstanceIds=[instance_id],
-        DocumentName="AWS-RunShellScript",
-        Parameters={'commands': ['condor_status']},
-    )
+    try:
+        response = ssmclient.send_command(
+            InstanceIds=[instance_id],
+            DocumentName="AWS-RunShellScript",
+            Parameters={'commands': ['condor_status']},
+        )
 
-    time.sleep(2)
+        time.sleep(2)
 
-    command_id = response['Command']['CommandId']
-    output = ssmclient.get_command_invocation(
-        CommandId=command_id,
-        InstanceId=instance_id,
-    )
+        command_id = response['Command']['CommandId']
+        output = ssmclient.get_command_invocation(
+            CommandId=command_id,
+            InstanceId=instance_id,
+        )
+        return render_template("index.html", zone=output['StandardOutputContent'])
+    except ClientError as e:
+        return render_template("index.html", zone=e)
 
-    return render_template("index.html", zone=output['StandardOutputContent'])
 
 # 10
 @app.route('/ModifyInstance', methods=['POST'])
