@@ -1,5 +1,5 @@
 import boto3, os, re, time
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, json
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 
@@ -23,28 +23,23 @@ def index():
 # 1
 @app.route('/ListInstance', methods=['GET'])
 def ListInstance(zone=None):
+
     instances = ec2client.describe_instances()
     set = []
-    printlist = ""
-    i = 1
+
+    print(instances)
 
     for reservation in instances["Reservations"]:
         for instance in reservation["Instances"]:
             set.append([
-                "Information Instance " + str(i),
-                "id : " + instance["InstanceId"],
-                "AMI : " + instance["ImageId"],
-                "type : " + instance["InstanceType"],
-                "state : " + instance["State"]["Name"],
-                "monitoring state : " + instance["Monitoring"]["State"] + " "
+                " [id] " + instance["InstanceId"],
+                " [AMI] " + instance["ImageId"],
+                " [type] " + instance["InstanceType"],
+                " [state] " + instance["State"]["Name"],
+                " [monitoring state] " + instance["Monitoring"]["State"] + " "
             ])
-        i = i + 1
 
-    for instancestr in set:
-        printlist = printlist + "[" + str(instancestr) + "]"
-    printlist = re.sub(r"[^=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
-
-    return render_template("index.html", zone=printlist)
+    return render_template("index.html", printlist=set)
 
 
 # 2
@@ -52,19 +47,15 @@ def ListInstance(zone=None):
 def AvailableZone():
     zones = ec2client.describe_availability_zones()
     set = []
-    blank = "                      "
+
     for zone in zones['AvailabilityZones']:
         set.append([
-            "id : " + zone["ZoneId"],
-            "region : " + zone["RegionName"],
-            "zone : " + zone["ZoneName"] + "\n"
+            " [id] " + zone["ZoneId"],
+            " [region] " + zone["RegionName"],
+            " [zone] " + zone["ZoneName"] + "\n"
         ])
 
-    printlist = str(set)
-    printlist = re.sub(r"[^\[\]=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
-    printlist = printlist[1:-1]
-
-    return render_template("index.html", zone=printlist)
+    return render_template("index.html", printlist=set)
 
 
 # 3
@@ -87,14 +78,11 @@ def AvailableRegions():
     set = []
     for region in regions['Regions']:
         set.append([
-            "region : " + region['RegionName'],
-            "endpoint : " + region['Endpoint']
+            " [region] " + region['RegionName'],
+            " [endpoint] " + region['Endpoint']
         ])
-    printlist = str(set)
-    printlist = re.sub(r"[^\[\]=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
-    printlist = printlist[1:-1]
 
-    return render_template("index.html", zone=printlist)
+    return render_template("index.html", printlist=set)
 
 
 # 5
@@ -116,8 +104,15 @@ def CreateInstance():
     image_id = request.form['zone']
 
     try:
-        response = ec2resource.create_instances(ImageId=image_id, MinCount=1, MaxCount=1, InstanceType='t2.micro',
-                                                KeyName='test', SecurityGroupIds=['launch-wizard-5'])
+        response = ec2resource.create_instances(ImageId=image_id,
+                                                MinCount=1,
+                                                MaxCount=1,
+                                                InstanceType='t2.micro',
+                                                KeyName='test',
+                                                SecurityGroupIds=['launch-wizard-5'],
+                                                IamInstanceProfile={
+                                                    'Arn': 'arn:aws:iam::236474827914:instance-profile/CloudTest'
+                                                })
         printlist = str(response)
         printlist = printlist.replace("[ec2.Instance(id='", "")
         printlist = printlist.replace("')]", "")
@@ -147,16 +142,12 @@ def ListImages():
     set = []
     for image in images['Images']:
         set.append([
-            "ImageID : " + image['ImageId'],
-            "Name : " + image['Name'],
-            "Owner : " + image['OwnerId']
+            " [ImageID] " + image['ImageId'],
+            " [Name] " + image['Name'],
+            " [Owner] " + image['OwnerId']
         ])
 
-    printlist = str(set)
-    printlist = re.sub(r"[^\[\]=:\uAC00-\uD7A30-9a-zA-Z\s]", "", printlist)
-    printlist = printlist[1:-1]
-
-    return render_template("index.html", zone=printlist)
+    return render_template("index.html", printlist=set)
 
 
 # 9
@@ -178,7 +169,11 @@ def Condor_Status():
             CommandId=command_id,
             InstanceId=instance_id,
         )
-        return render_template("index.html", zone=output['StandardOutputContent'])
+        print(output['StandardOutputContent'])
+
+        prtstr = str(output['StandardOutputContent'])
+        prtlist = prtstr.split('\n')
+        return render_template("index.html", printlist=prtlist)
     except ClientError as e:
         return render_template("index.html", zone=e)
 
